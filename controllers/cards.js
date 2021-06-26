@@ -1,10 +1,16 @@
 const Card = require('../models/card');
-const { createBadRequestError, createNotFoundError } = require('../utils/errors');
-const { asyncHandler, sendSuccess, mapError } = require('../utils/utils');
+const {
+  asyncHandler,
+  sendSuccess,
+  sendBadRequestError,
+  sendNotFoundError,
+  sendInternalServerError,
+} = require('../utils/utils');
 
 const errorMessages = {
   cardNotFound: 'Карточка с указанным _id не найдена.',
   createCardBadRequest: 'Переданы некорректные данные при создании карточки.',
+  removeCardBadRequest: 'Переданы некорректные данные при удалении карточки.',
   likeCardBadRequest: 'Переданы некорректные данные для постановки/снятии лайка.',
 };
 
@@ -14,8 +20,12 @@ module.exports.getCards = asyncHandler((_, res) => Card.find({})
 module.exports.removeCard = asyncHandler((req, res) => {
   const { cardId } = req.params;
   return Card.findByIdAndRemove(cardId)
-    .orFail(() => createNotFoundError(errorMessages.cardNotFound))
-    .then(() => sendSuccess(res));
+    .orFail(() => sendNotFoundError(res, errorMessages.cardNotFound))
+    .then(() => sendSuccess(res))
+    .catch((error) => {
+      if (error.name === 'CastError') sendBadRequestError(res, errorMessages.removeCardBadRequest);
+      else sendInternalServerError(res);
+    });
 });
 
 module.exports.createCard = asyncHandler((req, res) => {
@@ -23,7 +33,10 @@ module.exports.createCard = asyncHandler((req, res) => {
   const owner = req.user._id;
   return Card.create({ name, link, owner })
     .then((card) => sendSuccess(res, card))
-    .catch((error) => { throw mapError(error, errorMessages.createCardBadRequest); });
+    .catch((error) => {
+      if (error.name === 'ValidationError') sendBadRequestError(res, errorMessages.createCardBadRequest);
+      else sendInternalServerError(res);
+    });
 });
 
 module.exports.likeCard = asyncHandler((req, res) => Card
@@ -32,8 +45,12 @@ module.exports.likeCard = asyncHandler((req, res) => Card
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
-  .orFail(() => createBadRequestError(errorMessages.likeCardBadRequest))
-  .then(() => sendSuccess(res)));
+  .orFail(() => sendBadRequestError(res, errorMessages.cardNotFound))
+  .then(() => sendSuccess(res))
+  .catch((error) => {
+    if (error.name === 'CastError') sendBadRequestError(res, errorMessages.likeCardBadRequest);
+    else sendInternalServerError(res);
+  }));
 
 module.exports.dislikeCard = asyncHandler((req, res) => Card
   .findByIdAndUpdate(
@@ -41,5 +58,9 @@ module.exports.dislikeCard = asyncHandler((req, res) => Card
     { $pull: { likes: req.user._id } },
     { new: true },
   )
-  .orFail(() => createBadRequestError(errorMessages.likeCardBadRequest))
-  .then(() => sendSuccess(res)));
+  .orFail(() => sendBadRequestError(res, errorMessages.cardNotFound))
+  .then(() => sendSuccess(res))
+  .catch((error) => {
+    if (error.name === 'CastError') sendBadRequestError(res, errorMessages.likeCardBadRequest);
+    else sendInternalServerError(res);
+  }));
