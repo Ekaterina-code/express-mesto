@@ -1,7 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const { errorHandler } = require('./utils/utils');
+const { errors } = require('celebrate');
+const cookieParser = require('cookie-parser');
+const { errorHandler } = require('./middlewares/errorHandler');
 
 const { PORT = 3000 } = process.env;
 mongoose
@@ -13,17 +15,13 @@ mongoose
   .catch((err) => console.log(err));
 
 const app = express();
-
-app.use((req, res, next) => {
-  req.user = { _id: '60c5c9e54de3d606e4537993' };
-  next();
-});
-
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/users', require('./routes/users'));
 app.use('/cards', require('./routes/cards'));
 
+app.use(errors());
 app.use(errorHandler);
 
 const server = app.listen(PORT, (error) => {
