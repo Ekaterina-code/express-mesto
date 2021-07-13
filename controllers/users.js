@@ -26,7 +26,8 @@ const getUser = (userId, req, res) => User
   .then((user) => sendSuccess(res, user))
   .catch((error) => {
     if (error.name === 'CastError') throwBadRequestError(errorMessages.getProfileBadRequest);
-    else throwInternalServerError();
+    if (error.statusCode === 404) throwNotFoundError(error);
+    throwInternalServerError();
   });
 
 module.exports.getUsers = asyncHandler((req, res) => User
@@ -47,7 +48,14 @@ module.exports.createUser = asyncHandler((req, res) => {
         email,
         password: passwordHash,
       })
-      .then((user) => sendSuccess(res, user))
+      .then((user) => {
+        sendSuccess(res, {
+          name: user.name,
+          about: user.about,
+          avatar: user.avatar,
+          email: user.email,
+        });
+      })
       .catch((error) => {
         if (error.name === 'ValidationError') throwBadRequestError(errorMessages.createUserBadRequest);
         if (error.name === 'MongoError' && error.code === 11000) {
@@ -70,7 +78,8 @@ module.exports.editCurrentUser = asyncHandler((req, res) => {
     .then((user) => sendSuccess(res, user))
     .catch((error) => {
       if (error.name === 'CastError' || error.name === 'ValidationError') throwBadRequestError(res, errorMessages.updateProfileBadRequest);
-      else throwInternalServerError(res);
+      if (error.statusCode === 404) throwNotFoundError(error);
+      throwInternalServerError(res);
     });
 });
 
@@ -86,7 +95,8 @@ module.exports.setCurrentUserAvatar = asyncHandler((req, res) => {
     .then((user) => sendSuccess(res, user))
     .catch((error) => {
       if (error.name === 'CastError' || error.name === 'ValidationError') throwBadRequestError(errorMessages.updateAvatarBadRequest);
-      else throwInternalServerError();
+      if (error.statusCode === 404) throwNotFoundError(error);
+      throwInternalServerError();
     });
 });
 

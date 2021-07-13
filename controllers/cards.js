@@ -8,6 +8,7 @@ const {
 } = require('../utils/utils');
 
 const errorMessages = {
+  cardForRemoveNotFound: 'Карточка с указанным _id не найдена среди созданных данным пользователем.',
   cardNotFound: 'Карточка с указанным _id не найдена.',
   createCardBadRequest: 'Переданы некорректные данные при создании карточки.',
   removeCardBadRequest: 'Переданы некорректные данные при удалении карточки.',
@@ -19,12 +20,13 @@ module.exports.getCards = asyncHandler((_, res) => Card.find({})
 
 module.exports.removeCard = asyncHandler((req, res) => {
   const { cardId } = req.params;
-  return Card.findByIdAndRemove(cardId)
-    .orFail(() => throwNotFoundError(errorMessages.cardNotFound))
+  return Card.findOneAndRemove({ _id: cardId, owner: req.user._id })
+    .orFail(() => throwNotFoundError(errorMessages.cardForRemoveNotFound))
     .then(() => sendSuccess(res))
     .catch((error) => {
       if (error.name === 'CastError') throwBadRequestError(errorMessages.removeCardBadRequest);
-      else throwInternalServerError();
+      if (error.statusCode === 404) throwNotFoundError(error);
+      throwInternalServerError();
     });
 });
 
@@ -35,7 +37,7 @@ module.exports.createCard = asyncHandler((req, res) => {
     .then((card) => sendSuccess(res, card))
     .catch((error) => {
       if (error.name === 'ValidationError') throwBadRequestError(errorMessages.createCardBadRequest);
-      else throwInternalServerError();
+      throwInternalServerError();
     });
 });
 
@@ -49,7 +51,8 @@ module.exports.likeCard = asyncHandler((req, res) => Card
   .then(() => sendSuccess(res))
   .catch((error) => {
     if (error.name === 'CastError') throwBadRequestError(errorMessages.likeCardBadRequest);
-    else throwInternalServerError();
+    if (error.statusCode === 404) throwNotFoundError(error);
+    throwInternalServerError();
   }));
 
 module.exports.dislikeCard = asyncHandler((req, res) => Card
@@ -62,5 +65,6 @@ module.exports.dislikeCard = asyncHandler((req, res) => Card
   .then(() => sendSuccess(res))
   .catch((error) => {
     if (error.name === 'CastError') throwBadRequestError(errorMessages.likeCardBadRequest);
-    else throwInternalServerError();
+    if (error.statusCode === 404) throwNotFoundError(error);
+    throwInternalServerError();
   }));

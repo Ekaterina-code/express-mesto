@@ -1,4 +1,5 @@
 const HttpStatus = require('http-status-codes');
+const validator = require('validator');
 
 const defaultError = 'Ошибка по умолчанию.';
 
@@ -7,6 +8,8 @@ const createError = (data, statusCode) => {
   error.statusCode = statusCode;
   return error;
 };
+
+module.exports.createError = createError;
 
 module.exports.asyncHandler = (fn) => (req, res, next) => Promise
   .resolve(fn(req, res, next))
@@ -27,3 +30,10 @@ module.exports.throwBadRequestError = (message) => {
 module.exports.throwInternalServerError = () => {
   throw createError(defaultError, HttpStatus.INTERNAL_SERVER_ERROR);
 };
+
+// https://www.yandex является валидным адрессом, даже если использовать данный валидатор. :(
+// Начиная с 2014 года существует зона `.yandex`, вот новость об этом:
+// https://habr.com/ru/company/yandex/blog/230565/
+module.exports.urlValidator = (value, helpers) => (validator.isURL(value)
+  ? value
+  : helpers.message('URL validation error'));
