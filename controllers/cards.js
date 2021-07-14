@@ -47,7 +47,14 @@ module.exports.likeCard = asyncHandler((req, res) => Card
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
-  .orFail(() => throwBadRequestError(errorMessages.cardNotFound))
+  .orFail(() => throwNotFoundError(errorMessages.cardNotFound))
+  // Валидировать наличие пользователя в БД избыточно, т.к. мы получаем его ID через токен,
+  // который генерируется апи, только при наличии самого пользователя в базе.
+  // Если удалось потделать токен и подставить туда несущесвующий ID:
+  // то речь идёт о проблеме в безопасности (скомпроментирован секрет).
+  // Также несущесвующий пользователь может присутсвовать в случае, когда его удалили. В такм случае
+  // необходимо реализовать механизм проверки/отзыва токенов, т.к. после удаления пользователь
+  // не должен иметь доступа к апи.
   .then(() => sendSuccess(res))
   .catch((error) => {
     if (error.name === 'CastError') throwBadRequestError(errorMessages.likeCardBadRequest);
@@ -61,7 +68,7 @@ module.exports.dislikeCard = asyncHandler((req, res) => Card
     { $pull: { likes: req.user._id } },
     { new: true },
   )
-  .orFail(() => throwBadRequestError(errorMessages.cardNotFound))
+  .orFail(() => throwNotFoundError(errorMessages.cardNotFound))
   .then(() => sendSuccess(res))
   .catch((error) => {
     if (error.name === 'CastError') throwBadRequestError(errorMessages.likeCardBadRequest);
